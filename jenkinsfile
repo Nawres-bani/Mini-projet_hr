@@ -1,0 +1,130 @@
+<<<<<<< HEAD
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_ID = 'mern-419419'
+        CLUSTER_NAME = 'autopilot-cluster-1'
+        ZONE = 'us-central1'
+    }
+
+    stages {
+        stage('Checkout repository') {
+            steps {
+                // Use 'git' command to checkout the repository
+                git branch: 'main', url: 'https://github.com/ramzibenfradj/deep_learning_devops.git'
+            }
+        }
+        
+        stage('Download model file from Google Cloud Storage') {
+            steps {
+                sh 'gsutil cp gs://model_deep/plant_disease_prediction_model.h5 .'
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                // Use Docker Hub credentials
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                }
+            }
+        }
+
+        stage('Build Docker image') {
+            steps {
+                sh 'docker build -t rbenfraj46/flask-mongo-v1 .'
+            }
+        }
+
+        stage('Tag Docker image') {
+            steps {
+                sh 'docker tag rbenfraj46/flask-mongo-v1 rbenfraj46/flask-mongo-v1:latest'
+            }
+        }
+
+        stage('Push Docker image to Google Container Registry') {
+            steps {
+                sh 'docker push rbenfraj46/flask-mongo-v1:latest'
+            }
+        }
+
+        stage('Update Kubernetes deployment') {
+            steps {
+                sh '''
+                    gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
+                    kubectl apply -f flask-deployment.yaml
+                    kubectl apply -f mongo-deply.yaml
+                '''
+            }
+        }
+    }
+}
+=======
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_ID = 'mern-419419'
+        CLUSTER_NAME = 'autopilot-cluster-1'
+        ZONE = 'us-central1'
+    }
+
+    stages {
+        stage('Checkout repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/ramzibenfradj/deep_learning_devops.git'
+            }
+        }
+        
+        stage('Download model file from Google Cloud Storage') {
+            steps {
+                sh 'gsutil cp gs://model_deep/plant_disease_prediction_model.h5 .'
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                }
+            }
+        }
+
+        stage('Build Docker image') {
+            steps {
+                sh 'docker build -t rbenfraj46/flask-mongo-v1 .'
+            }
+        }
+
+        stage('Tag Docker image') {
+            steps {
+                sh 'docker tag rbenfraj46/flask-mongo-v1 rbenfraj46/flask-mongo-v1:latest'
+            }
+        }
+
+        stage('Push Docker image to Google Container Registry') {
+            steps {
+                sh 'docker push rbenfraj46/flask-mongo-v1:latest'
+            }
+        }
+
+        stage('Update Kubernetes deployment') {
+            steps {
+                sh '''
+                    gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
+                    kubectl apply -f flask-deployment.yaml
+                    kubectl apply -f mongo-deply.yaml
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            // Delete Docker image from the VM instance
+            sh 'docker rmi rbenfraj46/flask-mongo-v1:latest'
+        }
+    }
+}
+>>>>>>> 052c6d26b91e49e3fd9c3cda7baf4c9d05f7a28d
